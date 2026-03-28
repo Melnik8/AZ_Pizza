@@ -97,8 +97,8 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                                     {
                                         view.Row(["items-center gap-3"], content: view =>
                                         {
-                                            view.Box(["h-3 w-3 rounded-full bg-emerald-500"]);
-                                            view.Text(["text-sm"], "Green — score 3 standard invite; 20 min slot; OmaKanta 3-touch if no response.");
+                                            view.Box(["h-3 w-3 rounded-full bg-red-500"]);
+                                            view.Text(["text-sm"], "Red — score 6-7 urgent priority; Wave 1 immediate; GP actively notified; coordinator call if no booking in 7 days.");
                                         });
                                         view.Row(["items-center gap-3"], content: view =>
                                         {
@@ -107,8 +107,8 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                                         });
                                         view.Row(["items-center gap-3"], content: view =>
                                         {
-                                            view.Box(["h-3 w-3 rounded-full bg-red-500"]);
-                                            view.Text(["text-sm"], "Red — score 6-7 urgent priority; Wave 1 immediate; GP actively notified; coordinator call if no booking in 7 days.");
+                                            view.Box(["h-3 w-3 rounded-full bg-emerald-500"]);
+                                            view.Text(["text-sm"], "Green — score 3 standard invite; 20 min slot; OmaKanta + SMS.");
                                         });
                                     });
                                 });
