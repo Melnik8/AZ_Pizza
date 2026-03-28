@@ -61,6 +61,12 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                                 disabled: _isAnalyzing.Value,
                                 onClick: async () => { await AnalyzeAsync(); });
 
+                            view.Button(
+                                [Button.SecondaryMd],
+                                "Show example queue",
+                                disabled: _isAnalyzing.Value,
+                                onClick: async () => { await ShowExampleQueueAsync(); });
+
                             if (_hasAnalyzed.Value && !_isAnalyzing.Value)
                             {
                                 view.Text([Text.Small, "text-muted-foreground"],
@@ -92,17 +98,17 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                                         view.Row(["items-center gap-3"], content: view =>
                                         {
                                             view.Box(["h-3 w-3 rounded-full bg-emerald-500"]);
-                                            view.Text(["text-sm"], "Green — score 3 standard invite, light risk.");
+                                            view.Text(["text-sm"], "Green — score 3 standard invite; 20 min slot; OmaKanta 3-touch if no response.");
                                         });
                                         view.Row(["items-center gap-3"], content: view =>
                                         {
                                             view.Box(["h-3 w-3 rounded-full bg-amber-500"]);
-                                            view.Text(["text-sm"], "Amber — score 4-5 priority invite, moderate risk; OmaKanta + SMS; GP passive notification.");
+                                            view.Text(["text-sm"], "Amber — score 4-5 priority invite; 30 min, sooner date; OmaKanta + SMS; GP passive notification.");
                                         });
                                         view.Row(["items-center gap-3"], content: view =>
                                         {
                                             view.Box(["h-3 w-3 rounded-full bg-red-500"]);
-                                            view.Text(["text-sm"], "Red — score 6-7 urgent priority; GP actively notified; coordinator call if no booking in 7 days.");
+                                            view.Text(["text-sm"], "Red — score 6-7 urgent priority; Wave 1 immediate; GP actively notified; coordinator call if no booking in 7 days.");
                                         });
                                     });
                                 });
@@ -186,14 +192,13 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
 
     private static string CleanActionLabel(string actionLabel)
     {
-        const string urgentPhrase = "GP actively notified; coordinator call if no booking in 7 days";
-        if (actionLabel.Contains(urgentPhrase, StringComparison.Ordinal))
+        var marker = actionLabel.IndexOf('—');
+        if (marker >= 0)
         {
-            var cleaned = actionLabel.Replace(urgentPhrase, string.Empty, StringComparison.Ordinal);
-            return cleaned.Trim().TrimEnd(';', '.', ' ');
+            return actionLabel.Substring(0, marker).Trim();
         }
 
-        return actionLabel;
+        return actionLabel.Trim();
     }
 
     private static string BandLabel(LungFirstBand b) =>
@@ -266,6 +271,114 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
             _currentTheme.Value = nextTheme;
         }
     }
+
+    private async Task ShowExampleQueueAsync()
+    {
+        if (_isAnalyzing.Value)
+        {
+            return;
+        }
+
+        _analysisError.Value = null;
+        _scored.Value = GetExampleInviteQueue()
+            .OrderByDescending(r => r.FinalScore)
+            .ThenBy(r => r.PatientId)
+            .ToList();
+        _excluded.Value = new List<GateExcludedResult>();
+        _invitedPatients.Value = new HashSet<string>();
+        _hasAnalyzed.Value = true;
+
+        await Task.CompletedTask;
+    }
+
+    private static List<CopdRiskResult> GetExampleInviteQueue() => new()
+    {
+        new CopdRiskResult
+        {
+            PatientId = "EX-2001",
+            Age = 72,
+            ParameterScore = 5,
+            FinalScore = 6,
+            ComorbidityModifierApplied = false,
+            Band = LungFirstBand.UrgentPriority,
+            ActionLabel = "Urgent priority — Wave 1 immediate; GP actively notified; coordinator call if no booking in 7 days",
+            Wave = "Wave 1",
+            Slot = "30 min urgent",
+            RuleP1AgeSmokingOrCessation = true,
+            RuleP2SalbutamolWithoutRespDx = true,
+            RuleP3LrtiAntibiotics = true,
+            RuleP4VagueRespiratoryVisits = false,
+            RuleP5NoSpirometry = false
+        },
+        new CopdRiskResult
+        {
+            PatientId = "EX-2002",
+            Age = 68,
+            ParameterScore = 6,
+            FinalScore = 7,
+            ComorbidityModifierApplied = true,
+            Band = LungFirstBand.UrgentPriority,
+            ActionLabel = "Urgent priority — Wave 1 immediate; GP actively notified; coordinator call if no booking in 7 days",
+            Wave = "Wave 1",
+            Slot = "30 min urgent",
+            RuleP1AgeSmokingOrCessation = true,
+            RuleP2SalbutamolWithoutRespDx = true,
+            RuleP3LrtiAntibiotics = true,
+            RuleP4VagueRespiratoryVisits = true,
+            RuleP5NoSpirometry = true
+        },
+        new CopdRiskResult
+        {
+            PatientId = "EX-2003",
+            Age = 64,
+            ParameterScore = 4,
+            FinalScore = 4,
+            ComorbidityModifierApplied = false,
+            Band = LungFirstBand.PriorityInvite,
+            ActionLabel = "Priority invite — 30 min, sooner date; OmaKanta + SMS; GP passive notification",
+            Wave = "Wave 1",
+            Slot = "30 min priority",
+            RuleP1AgeSmokingOrCessation = true,
+            RuleP2SalbutamolWithoutRespDx = false,
+            RuleP3LrtiAntibiotics = true,
+            RuleP4VagueRespiratoryVisits = true,
+            RuleP5NoSpirometry = false
+        },
+        new CopdRiskResult
+        {
+            PatientId = "EX-2004",
+            Age = 57,
+            ParameterScore = 4,
+            FinalScore = 5,
+            ComorbidityModifierApplied = false,
+            Band = LungFirstBand.PriorityInvite,
+            ActionLabel = "Priority invite — 30 min, sooner date; OmaKanta + SMS; GP passive notification",
+            Wave = "Wave 1",
+            Slot = "30 min priority",
+            RuleP1AgeSmokingOrCessation = false,
+            RuleP2SalbutamolWithoutRespDx = true,
+            RuleP3LrtiAntibiotics = false,
+            RuleP4VagueRespiratoryVisits = true,
+            RuleP5NoSpirometry = true
+        },
+        new CopdRiskResult
+        {
+            PatientId = "EX-2005",
+            Age = 62,
+            ParameterScore = 3,
+            FinalScore = 3,
+            ComorbidityModifierApplied = false,
+            Band = LungFirstBand.StandardInvite,
+            ActionLabel = "Standard invite — 20 min slot; OmaKanta 3-touch if no response",
+            Wave = "Wave 2",
+            Slot = "20 min standard",
+            RuleP1AgeSmokingOrCessation = true,
+            RuleP2SalbutamolWithoutRespDx = false,
+            RuleP3LrtiAntibiotics = false,
+            RuleP4VagueRespiratoryVisits = true,
+            RuleP5NoSpirometry = false
+        }
+    };
 
     private async Task AnalyzeAsync()
     {
