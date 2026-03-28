@@ -18,6 +18,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
     private readonly Reactive<string?> _analysisError = new(null);
     private readonly Reactive<List<CopdRiskResult>> _scored = new([]);
     private readonly Reactive<List<GateExcludedResult>> _excluded = new([]);
+    private readonly Reactive<HashSet<string>> _invitedPatients = new(new HashSet<string>());
     private readonly Reactive<bool> _hasAnalyzed = new(false);
 
     public async Task Main()
@@ -42,19 +43,11 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                             view.Column([Layout.Column.Xs], content: view =>
                             {
                                 view.Text([Text.H2, "font-heading"], "LungFirst AI flagging (prototype)");
-                                view.Text([Text.Body, "text-muted-foreground max-w-2xl"],
-                                    "Kanta-style rules from technical spec: hard gates → weighted P1–P5 → comorbidity +0.5 (ceiling). Invites only — never diagnoses. PostgreSQL or bundled JSON.");
                             });
 
                             view.Button([Button.GhostMd, Button.Size.Icon],
                                 onClick: ToggleThemeAsync,
                                 content: v => v.Icon([Icon.Default], name: _currentTheme.Value == Constants.DarkTheme ? "sun" : "moon"));
-                        });
-
-                        view.Box(["rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 mb-4"], content: view =>
-                        {
-                            view.Text([Text.Small, "text-amber-900 dark:text-amber-100"],
-                                "Not for clinical use. Synthetic / demo data only. Align production with lungfirst-ai-flagging-spec.pdf and Kanta APIs.");
                         });
                     });
 
@@ -71,7 +64,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                             if (_hasAnalyzed.Value && !_isAnalyzing.Value)
                             {
                                 view.Text([Text.Small, "text-muted-foreground"],
-                                    $"{_scored.Value.Count} queued · {_excluded.Value.Count} excluded at gate");
+                                    $"{_scored.Value.Count} queued · {_excluded.Value.Count} non-risk");
                             }
                         });
 
@@ -93,7 +86,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                             {
                                 if (_excluded.Value.Count > 0)
                                 {
-                                    view.Text([Text.H3, "font-heading text-sm"], "Hard gate exits (no score)");
+                                    view.Text([Text.H3, "font-heading text-sm"], "Non-risk group (no score)");
                                     view.Column([Layout.Column.Sm, "mb-6"], content: view =>
                                     {
                                         foreach (var ex in _excluded.Value.OrderBy(e => e.PatientId))
@@ -127,7 +120,8 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                                             view.Text(["w-14 text-center"], "Final");
                                             view.Text(["min-w-[6rem]"], "Band");
                                             view.Text(["min-w-[7rem]"], "Wave / slot");
-                                            view.Text(["flex-1 min-w-[12rem]"], "Parameters");
+                                            view.Text(["flex-1 min-w-[12rem]"], "Details");
+                                            view.Text(["w-28 text-right"], "Action");
                                         });
 
                                     foreach (var row in _scored.Value)
@@ -157,6 +151,26 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                                                 {
                                                     view.Text(["text-sm font-medium leading-snug"], row.ActionLabel);
                                                     view.Text(["text-xs font-medium leading-relaxed"], FormatRuleHits(row));
+                                                });
+                                                var invited = _invitedPatients.Value.Contains(row.PatientId);
+                                                view.Column(["w-28 flex items-center justify-end"], content: view =>
+                                                {
+                                                    if (invited)
+                                                    {
+                                                        view.Button([Button.SecondaryMd, "w-full"], "Invitation sent", disabled: true);
+                                                    }
+                                                    else
+                                                    {
+                                                        view.Button([Button.PrimaryMd, "w-full"], "Invite",
+                                                            onClick: async () =>
+                                                            {
+                                                                var updated = new HashSet<string>(_invitedPatients.Value)
+                                                                {
+                                                                    row.PatientId
+                                                                };
+                                                                _invitedPatients.Value = updated;
+                                                            });
+                                                    }
                                                 });
                                             });
                                         });
@@ -268,6 +282,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                 .ThenBy(r => r.PatientId)
                 .ToList();
 
+            _invitedPatients.Value = new HashSet<string>();
             _hasAnalyzed.Value = true;
         }
         catch (Exception ex)

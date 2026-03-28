@@ -15,7 +15,7 @@ INSERT INTO copd_patients (
     'Salbutamol repeats; cough visits; no spirometry.'
 ),
 (
-    'DB-2002', '1988-07-01', 'None', FALSE,
+    'DB-2002', '1982-07-01', 'None', FALSE,
     1, 0, 2, FALSE, TRUE, FALSE, FALSE, TRUE, FALSE, TRUE,
     'Nicorette course; Ventolin; URTI codes. Diabetes on record.'
 ),
