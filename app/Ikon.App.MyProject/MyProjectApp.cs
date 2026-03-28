@@ -1,22 +1,24 @@
+using System.Linq;
+using Ikon.App.MyProject.Clinical;
+using Ikon.App.MyProject.Data;
+
 return await App.Run(args);
 
 public record SessionIdentity(string UserId);
-public record ClientParameters(string Name = "Ikon"); // Can be set through URL query parameter ?name=value
+public record ClientParameters(string Name = "Ikon");
 
 [App]
 public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
 {
     private UI UI { get; } = new(app, new Theme());
-    private Audio Audio { get; } = new(app);
 
-    private readonly Reactive<string> _name = new("");
-    private readonly Reactive<string> _imagePrompt = new("A neon-lit cyberpunk street market at night with holographic signs");
-    private readonly Reactive<byte[]?> _generatedImageData = new(null);
-    private readonly Reactive<string?> _generatedImageMime = new(null);
-    private readonly Reactive<bool> _isGeneratingImage = new(false);
-    private readonly Reactive<string> _speechText = new("The quick brown fox jumps over the lazy dog, speaking every letter in style.");
-    private readonly Reactive<bool> _isSpeaking = new(false);
+    private readonly IPatientRecordRepository _patients = PatientRecordRepositoryFactory.Create(app);
     private readonly ClientReactive<string> _currentTheme = new(Constants.LightTheme);
+    private readonly Reactive<bool> _isAnalyzing = new(false);
+    private readonly Reactive<string?> _analysisError = new(null);
+    private readonly Reactive<List<CopdRiskResult>> _scored = new([]);
+    private readonly Reactive<List<GateExcludedResult>> _excluded = new([]);
+    private readonly Reactive<bool> _hasAnalyzed = new(false);
 
     public async Task Main()
     {
@@ -31,94 +33,201 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
         UI.Root([Page.Default],
             content: view =>
             {
-                view.Column([Container.Xl2, Layout.Center, "py-8 px-4 min-h-screen"], content: view =>
+                view.Column(["h-screen overflow-hidden"], content: view =>
                 {
-                    view.Column([Card.Default, Layout.Column.Lg, "p-10 w-full"], content: view =>
+                    view.Column([Container.Xl2, "px-4 py-4 flex-shrink-0 max-w-6xl mx-auto w-full"], content: view =>
                     {
-                        // Header with title and theme toggle
-                        view.Row([Layout.Row.SpaceBetween, "mb-6"], content: view =>
+                        view.Row([Layout.Row.SpaceBetween, "items-start gap-4 mb-2"], content: view =>
                         {
-                            view.Text([
-                                    "text-4xl font-bold tracking-tight font-heading",
-                                    "wave:motion-[0:translate-y-0,50:translate-y-[-10px],100:translate-y-0] wave:motion-duration-2500ms wave:motion-stagger-150ms wave:motion-per-letter wave:motion-loop wave:motion-ease-[ease-in-out]"
-                                ], $"{nameof(MyProjectApp)}");
+                            view.Column([Layout.Column.Xs], content: view =>
+                            {
+                                view.Text([Text.H2, "font-heading"], "LungFirst AI flagging (prototype)");
+                                view.Text([Text.Body, "text-muted-foreground max-w-2xl"],
+                                    "Kanta-style rules from technical spec: hard gates → weighted P1–P5 → comorbidity +0.5 (ceiling). Invites only — never diagnoses. PostgreSQL or bundled JSON.");
+                            });
 
                             view.Button([Button.GhostMd, Button.Size.Icon],
                                 onClick: ToggleThemeAsync,
                                 content: v => v.Icon([Icon.Default], name: _currentTheme.Value == Constants.DarkTheme ? "sun" : "moon"));
                         });
 
-                        // Greeting section
-                        view.Column([Layout.Column.Sm], content: view =>
+                        view.Box(["rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 mb-4"], content: view =>
                         {
-                            view.Text([Text.H2], string.IsNullOrWhiteSpace(_name.Value) ? nameof(MyProjectApp) : $"Hello, {_name.Value}!");
-
-                            view.Column([FormField.Root], content: view =>
-                            {
-                                view.TextField(
-                                    [Input.Default],
-                                    placeholder: "Enter your name",
-                                    value: _name.Value,
-                                    onValueChange: async value => { _name.Value = value; }
-                                );
-                            });
+                            view.Text([Text.Small, "text-amber-900 dark:text-amber-100"],
+                                "Not for clinical use. Synthetic / demo data only. Align production with lungfirst-ai-flagging-spec.pdf and Kanta APIs.");
                         });
+                    });
 
-                        // Image generation section
-                        view.Column([Card.Default, "p-4"], content: view =>
+                    view.Column(["flex-1 min-h-0 max-w-6xl mx-auto w-full px-4 pb-4"], content: view =>
+                    {
+                        view.Row(["gap-3 flex-wrap items-center mb-3 flex-shrink-0"], content: view =>
                         {
-                            view.Column([FormField.Root], content: view =>
-                            {
-                                view.Text([FormField.Label], "Image Prompt");
-                                view.TextField(
-                                    [Input.Default],
-                                    placeholder: "Describe the image you want to generate",
-                                    value: _imagePrompt.Value,
-                                    onValueChange: async value => { _imagePrompt.Value = value; }
-                                );
-                            });
-
                             view.Button(
-                                [Button.PrimaryMd, "mt-2 w-fit self-center"],
-                                _isGeneratingImage.Value ? "Generating..." : "Create image",
-                                disabled: _isGeneratingImage.Value || string.IsNullOrWhiteSpace(_imagePrompt.Value),
-                                onClick: async () => { await GenerateImageAsync(); }
-                            );
+                                [Button.PrimaryMd],
+                                _isAnalyzing.Value ? "Analyzing…" : "Analyze database",
+                                disabled: _isAnalyzing.Value,
+                                onClick: async () => { await AnalyzeAsync(); });
 
-                            if (_generatedImageData.Value != null && _generatedImageMime.Value != null)
+                            if (_hasAnalyzed.Value && !_isAnalyzing.Value)
                             {
-                                view.Box(["mt-4"], content: view =>
-                                {
-                                    view.Image(style: ["max-w-full h-auto", Tokens.Radius.Lg], data: _generatedImageData.Value, mimeType: _generatedImageMime.Value, alt: "Generated image");
-                                });
+                                view.Text([Text.Small, "text-muted-foreground"],
+                                    $"{_scored.Value.Count} queued · {_excluded.Value.Count} excluded at gate");
                             }
                         });
 
-                        // TTS section
-                        view.Column([Card.Default, "p-4"], content: view =>
+                        if (_analysisError.Value != null)
                         {
-                            view.Column([FormField.Root], content: view =>
-                            {
-                                view.Text([FormField.Label], "Text to Speech");
-                                view.TextField(
-                                    [Input.Default],
-                                    placeholder: "Enter text to speak",
-                                    value: _speechText.Value,
-                                    onValueChange: async value => { _speechText.Value = value; }
-                                );
-                            });
+                            view.Text([Text.Small, "text-red-600 mb-2"], _analysisError.Value);
+                        }
 
-                            view.Button(
-                                [Button.PrimaryMd, "mt-2 w-fit self-center"],
-                                _isSpeaking.Value ? "Speaking..." : "Speak",
-                                disabled: _isSpeaking.Value || string.IsNullOrWhiteSpace(_speechText.Value),
-                                onClick: async () => { await SpeakAsync(); }
-                            );
+                        view.ScrollArea(rootStyle: ["flex-1 min-h-0"], content: view =>
+                        {
+                            if (!_hasAnalyzed.Value)
+                            {
+                                view.Text([Text.Body, "text-muted-foreground"],
+                                    "Run batch analysis. Output: priority-ranked invitation queue (bands), not a diagnosis.");
+                                return;
+                            }
+
+                            view.Column([Layout.Column.Lg, "pb-4"], content: view =>
+                            {
+                                if (_excluded.Value.Count > 0)
+                                {
+                                    view.Text([Text.H3, "font-heading text-sm"], "Hard gate exits (no score)");
+                                    view.Column([Layout.Column.Sm, "mb-6"], content: view =>
+                                    {
+                                        foreach (var ex in _excluded.Value.OrderBy(e => e.PatientId))
+                                        {
+                                            view.Column([
+                                                    "rounded-lg border border-border bg-muted/30 p-3 text-sm gap-1"
+                                                ],
+                                                content: view =>
+                                                {
+                                                    view.Row(["gap-2 flex-wrap"], content: view =>
+                                                    {
+                                                        view.Text(["font-mono font-medium"], ex.PatientId);
+                                                        view.Text(["text-muted-foreground"], $"age {ex.Age}");
+                                                    });
+                                                    view.Text(["text-xs opacity-90"], ex.Reason);
+                                                });
+                                        }
+                                    });
+                                }
+
+                                view.Text([Text.H3, "font-heading text-sm text-foreground"], "Invitation queue (by final score)");
+                                view.Column([Layout.Column.Sm], content: view =>
+                                {
+                                    view.Row([
+                                            "gap-3 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground border-b border-border flex-wrap"
+                                        ],
+                                        content: view =>
+                                        {
+                                            view.Text(["min-w-[7rem]"], "Patient");
+                                            view.Text(["w-10"], "Age");
+                                            view.Text(["w-14 text-center"], "Final");
+                                            view.Text(["min-w-[6rem]"], "Band");
+                                            view.Text(["min-w-[7rem]"], "Wave / slot");
+                                            view.Text(["flex-1 min-w-[12rem]"], "Parameters");
+                                        });
+
+                                    foreach (var row in _scored.Value)
+                                    {
+                                        var band = RowStyleForBand(row.Band);
+                                        view.Column(["rounded-lg border p-3 text-sm gap-2", band], content: view =>
+                                        {
+                                            view.Row(["gap-3 flex-wrap items-start"], content: view =>
+                                            {
+                                                view.Text(["min-w-[7rem] font-mono font-semibold"], row.PatientId);
+                                                view.Text(["w-10 font-medium tabular-nums"], $"{row.Age}");
+                                                view.Column(["w-14 text-center"], content: view =>
+                                                {
+                                                    view.Text(["font-bold tabular-nums text-lg"], $"{row.FinalScore}");
+                                                    if (row.ComorbidityModifierApplied)
+                                                    {
+                                                        view.Text(["text-xs opacity-90"], $"p={row.ParameterScore}");
+                                                    }
+                                                });
+                                                view.Text(["min-w-[6rem] text-xs font-semibold"], BandLabel(row.Band));
+                                                view.Column(["min-w-[7rem]"], content: view =>
+                                                {
+                                                    view.Text(["text-xs font-medium"], row.Wave);
+                                                    view.Text(["text-xs"], row.Slot);
+                                                });
+                                                view.Column(["flex-1 min-w-[12rem] gap-1.5"], content: view =>
+                                                {
+                                                    view.Text(["text-sm font-medium leading-snug"], row.ActionLabel);
+                                                    view.Text(["text-xs font-medium leading-relaxed"], FormatRuleHits(row));
+                                                });
+                                            });
+                                        });
+                                    }
+                                });
+                            });
                         });
                     });
                 });
             });
     }
+
+    private static string BandLabel(LungFirstBand b) =>
+        b switch
+        {
+            LungFirstBand.PassiveWatch => "0–2 watch",
+            LungFirstBand.StandardInvite => "3 standard",
+            LungFirstBand.PriorityInvite => "4–5 priority",
+            LungFirstBand.UrgentPriority => "6–7 urgent",
+            _ => ""
+        };
+
+    private static string FormatRuleHits(CopdRiskResult r)
+    {
+        var parts = new List<string>();
+        if (r.RuleP1AgeSmokingOrCessation)
+        {
+            parts.Add("P1 age+smoking/NRT");
+        }
+
+        if (r.RuleP2SalbutamolWithoutRespDx)
+        {
+            parts.Add("P2 salbutamol");
+        }
+
+        if (r.RuleP3LrtiAntibiotics)
+        {
+            parts.Add("P3 LRTI abs");
+        }
+
+        if (r.RuleP4VagueRespiratoryVisits)
+        {
+            parts.Add("P4 vague visits");
+        }
+
+        if (r.RuleP5NoSpirometry)
+        {
+            parts.Add("P5 no spirometry");
+        }
+
+        if (r.ComorbidityModifierApplied)
+        {
+            parts.Add("+0.5 comorbidity→ceil");
+        }
+
+        return parts.Count == 0 ? "—" : string.Join(" · ", parts);
+    }
+
+    private static string RowStyleForBand(LungFirstBand band) =>
+        band switch
+        {
+            LungFirstBand.PassiveWatch =>
+                "bg-emerald-50 border-emerald-200 text-emerald-950 dark:bg-emerald-950/50 dark:border-emerald-700 dark:text-zinc-100",
+            LungFirstBand.StandardInvite =>
+                "bg-sky-50 border-sky-200 text-sky-950 dark:bg-sky-950/50 dark:border-sky-700 dark:text-zinc-100",
+            LungFirstBand.PriorityInvite =>
+                "bg-amber-50 border-amber-200 text-amber-950 dark:bg-amber-950/50 dark:border-amber-700 dark:text-zinc-100",
+            LungFirstBand.UrgentPriority =>
+                "bg-red-50 border-red-200 text-red-950 dark:bg-red-950/50 dark:border-red-800 dark:text-zinc-100",
+            _ => "bg-card border-border text-foreground"
+        };
 
     private async Task ToggleThemeAsync()
     {
@@ -131,87 +240,44 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
         }
     }
 
-    private async Task GenerateImageAsync()
+    private async Task AnalyzeAsync()
     {
-        if (_isGeneratingImage.Value || string.IsNullOrWhiteSpace(_imagePrompt.Value))
+        if (_isAnalyzing.Value)
         {
             return;
         }
 
-        _isGeneratingImage.Value = true;
+        _isAnalyzing.Value = true;
+        _analysisError.Value = null;
 
         try
         {
-            var imageGenerator = new ImageGenerator(ImageGeneratorModel.Gemini25FlashImage);
+            var records = await _patients.GetAllPatientsAsync();
+            var evals = records.Select(CopdRiskScorer.Evaluate).ToList();
 
-            var results = await imageGenerator.GenerateImageAsync(new ImageGeneratorConfig
-            {
-                Prompt = _imagePrompt.Value,
-                Width = 512,
-                Height = 512
-            });
+            _excluded.Value = evals
+                .Where(e => e.Excluded != null)
+                .Select(e => e.Excluded!)
+                .OrderBy(x => x.PatientId)
+                .ToList();
 
-            if (results.Count > 0)
-            {
-                var result = results[0];
-                _generatedImageData.Value = result.Data;
-                _generatedImageMime.Value = result.MimeType;
-            }
+            _scored.Value = evals
+                .Where(e => e.Scored != null)
+                .Select(e => e.Scored!)
+                .OrderByDescending(r => r.FinalScore)
+                .ThenBy(r => r.PatientId)
+                .ToList();
+
+            _hasAnalyzed.Value = true;
         }
         catch (Exception ex)
         {
-            Log.Instance.Warning($"Image generation failed: {ex.Message}");
+            _analysisError.Value = $"Analysis failed: {ex.Message}";
+            Log.Instance.Warning($"LungFirst analysis error: {ex}");
         }
         finally
         {
-            _isGeneratingImage.Value = false;
+            _isAnalyzing.Value = false;
         }
-    }
-
-    private async Task SpeakAsync()
-    {
-        if (_isSpeaking.Value || string.IsNullOrWhiteSpace(_speechText.Value))
-        {
-            return;
-        }
-
-        _isSpeaking.Value = true;
-
-        try
-        {
-            using var speechGenerator = new SpeechGenerator(SpeechGeneratorModel.ElevenTurbo25);
-
-            await foreach (var audio in speechGenerator.GenerateSpeechAsync(new SpeechGeneratorConfig { Text = _speechText.Value }))
-            {
-                Audio.SendSpeech(audio);
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Instance.Warning($"Speech generation failed: {ex.Message}");
-        }
-        finally
-        {
-            _isSpeaking.Value = false;
-        }
-    }
-}
-
-// Minimal pipeline example that appends "Hello " to the content of each input item
-[Pipeline(name: "example")]
-public class ExamplePipeline
-{
-    public async Task Run(Pipeline<Item>.Branch inputItems, CancellationToken cancellationToken)
-    {
-        var outputItems = inputItems.Transform(item => Process(item, cancellationToken));
-        outputItems.Output();
-    }
-
-    [Processor]
-    private static async Task<List<Item>> Process(Item inputItem, CancellationToken cancellationToken)
-    {
-        var text = await inputItem.GetContentAsString();
-        var outputItem = await Item.Create(inputItem, $"{inputItem.Name}.full_greeting", $"Hello {text}!", MimeTypes.TextPlain);
-        return [outputItem];
     }
 }

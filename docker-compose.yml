@@ -1,0 +1,24 @@
+# Local PostgreSQL for COPD CDS testing.
+# Usage:
+#   docker compose up -d
+#   set COPD_PG_CONNECTION=Host=localhost;Port=5432;Username=copd;Password=copd_test;Database=copd_cds
+#   ikon app run
+#
+# Init scripts in app/Ikon.App.MyProject/Data/Sql run on first container start only.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: copd
+      POSTGRES_PASSWORD: copd_test
+      POSTGRES_DB: copd_cds
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./app/Ikon.App.MyProject/Data/Sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U copd -d copd_cds"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
