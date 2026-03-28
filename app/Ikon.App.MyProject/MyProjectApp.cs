@@ -64,7 +64,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                             if (_hasAnalyzed.Value && !_isAnalyzing.Value)
                             {
                                 view.Text([Text.Small, "text-muted-foreground"],
-                                    $"{_scored.Value.Count} queued · {_excluded.Value.Count} non-risk");
+                                    $"{_scored.Value.Count} queued");
                             }
                         });
 
@@ -84,28 +84,28 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
 
                             view.Column([Layout.Column.Lg, "pb-4"], content: view =>
                             {
-                                if (_excluded.Value.Count > 0)
+                                view.Box(["rounded-lg border border-border bg-muted/10 p-4 mb-4"], content: view =>
                                 {
-                                    view.Text([Text.H3, "font-heading text-sm"], "Non-risk group (no score)");
-                                    view.Column([Layout.Column.Sm, "mb-6"], content: view =>
+                                    view.Text([Text.H4, "font-heading mb-3"], "Color reference");
+                                    view.Column(["gap-2"], content: view =>
                                     {
-                                        foreach (var ex in _excluded.Value.OrderBy(e => e.PatientId))
+                                        view.Row(["items-center gap-3"], content: view =>
                                         {
-                                            view.Column([
-                                                    "rounded-lg border border-border bg-muted/30 p-3 text-sm gap-1"
-                                                ],
-                                                content: view =>
-                                                {
-                                                    view.Row(["gap-2 flex-wrap"], content: view =>
-                                                    {
-                                                        view.Text(["font-mono font-medium"], ex.PatientId);
-                                                        view.Text(["text-muted-foreground"], $"age {ex.Age}");
-                                                    });
-                                                    view.Text(["text-xs opacity-90"], ex.Reason);
-                                                });
-                                        }
+                                            view.Box(["h-3 w-3 rounded-full bg-emerald-500"]);
+                                            view.Text(["text-sm"], "Green — score 3 standard invite, light risk.");
+                                        });
+                                        view.Row(["items-center gap-3"], content: view =>
+                                        {
+                                            view.Box(["h-3 w-3 rounded-full bg-amber-500"]);
+                                            view.Text(["text-sm"], "Amber — score 4-5 priority invite, moderate risk; OmaKanta + SMS; GP passive notification.");
+                                        });
+                                        view.Row(["items-center gap-3"], content: view =>
+                                        {
+                                            view.Box(["h-3 w-3 rounded-full bg-red-500"]);
+                                            view.Text(["text-sm"], "Red — score 6-7 urgent priority; GP actively notified; coordinator call if no booking in 7 days.");
+                                        });
                                     });
-                                }
+                                });
 
                                 view.Text([Text.H3, "font-heading text-sm text-foreground"], "Invitation queue (by final score)");
                                 view.Column([Layout.Column.Sm], content: view =>
@@ -149,7 +149,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                                                 });
                                                 view.Column(["flex-1 min-w-[12rem] gap-1.5"], content: view =>
                                                 {
-                                                    view.Text(["text-sm font-medium leading-snug"], row.ActionLabel);
+                                                    view.Text(["text-sm font-medium leading-snug"], CleanActionLabel(row.ActionLabel));
                                                     view.Text(["text-xs font-medium leading-relaxed"], FormatRuleHits(row));
                                                 });
                                                 var invited = _invitedPatients.Value.Contains(row.PatientId);
@@ -176,11 +176,24 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                                         });
                                     }
                                 });
+
                             });
                         });
                     });
                 });
             });
+    }
+
+    private static string CleanActionLabel(string actionLabel)
+    {
+        const string urgentPhrase = "GP actively notified; coordinator call if no booking in 7 days";
+        if (actionLabel.Contains(urgentPhrase, StringComparison.Ordinal))
+        {
+            var cleaned = actionLabel.Replace(urgentPhrase, string.Empty, StringComparison.Ordinal);
+            return cleaned.Trim().TrimEnd(';', '.', ' ');
+        }
+
+        return actionLabel;
     }
 
     private static string BandLabel(LungFirstBand b) =>
@@ -235,7 +248,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
             LungFirstBand.PassiveWatch =>
                 "bg-emerald-50 border-emerald-200 text-emerald-950 dark:bg-emerald-950/50 dark:border-emerald-700 dark:text-zinc-100",
             LungFirstBand.StandardInvite =>
-                "bg-sky-50 border-sky-200 text-sky-950 dark:bg-sky-950/50 dark:border-sky-700 dark:text-zinc-100",
+                "bg-emerald-50 border-emerald-200 text-emerald-950 dark:bg-emerald-950/50 dark:border-emerald-700 dark:text-zinc-100",
             LungFirstBand.PriorityInvite =>
                 "bg-amber-50 border-amber-200 text-amber-950 dark:bg-amber-950/50 dark:border-amber-700 dark:text-zinc-100",
             LungFirstBand.UrgentPriority =>
@@ -278,6 +291,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
             _scored.Value = evals
                 .Where(e => e.Scored != null)
                 .Select(e => e.Scored!)
+                .Where(r => r.FinalScore >= 3)
                 .OrderByDescending(r => r.FinalScore)
                 .ThenBy(r => r.PatientId)
                 .ToList();
