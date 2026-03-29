@@ -1,6 +1,6 @@
 namespace Ikon.App.MyProject.Clinical;
 
-/// <summary>Step 1 — hard gates before any scoring (LungFirst spec).</summary>
+/// <summary>Step 1 — hard gates before any scoring (Prognos spec).</summary>
 public static class HardGateEvaluator
 {
     /// <summary>Returns null if all gates pass; otherwise first failing gate reason for audit.</summary>
@@ -39,3 +39,4 @@ public static class HardGateEvaluator
         return null;
     }
 }
+

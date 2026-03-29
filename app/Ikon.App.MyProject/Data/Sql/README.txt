@@ -1,6 +1,6 @@
-LungFirst / COPD CDS — test database (PostgreSQL)
+Prognos / COPD CDS — test database (PostgreSQL)
 
-Spec: lungfirst-ai-flagging-spec.pdf (hard gates, P1–P5, bands, comorbidity modifier).
+Spec: prognos-ai-flagging-spec.pdf (hard gates, P1–P5, bands, comorbidity modifier).
 
 1) Local Docker (recommended for development)
    From repo root (Ikon.App.MyProject):
@@ -20,3 +20,4 @@ Spec: lungfirst-ai-flagging-spec.pdf (hard gates, P1–P5, bands, comorbidity mo
    Unset COPD_PG_CONNECTION so the app uses the allocated connection from the host.
 
 If neither COPD_PG_CONNECTION nor an Ikon "copd" database is available, the app uses bundled JSON demo data.
+

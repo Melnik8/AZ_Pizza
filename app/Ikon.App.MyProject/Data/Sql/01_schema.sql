@@ -1,5 +1,5 @@
--- LungFirst / Kanta-aligned test schema (PostgreSQL)
--- See lungfirst-ai-flagging-spec.pdf — hard gates + P1–P5 + comorbidity modifier
+-- Prognos / Kanta-aligned test schema (PostgreSQL)
+-- See prognos-ai-flagging-spec.pdf — hard gates + P1–P5 + comorbidity modifier
 
 CREATE TABLE IF NOT EXISTS copd_patients (
     patient_id VARCHAR(64) PRIMARY KEY,
@@ -20,3 +20,4 @@ CREATE TABLE IF NOT EXISTS copd_patients (
 );
 
 CREATE INDEX IF NOT EXISTS idx_copd_patients_dob ON copd_patients (date_of_birth);
+

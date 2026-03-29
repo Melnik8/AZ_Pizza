@@ -42,7 +42,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                         {
                             view.Column([Layout.Column.Xs], content: view =>
                             {
-                                view.Text([Text.H2, "font-heading"], "LungFirst AI flagging (prototype)");
+                                view.Text([Text.H2, "font-heading"], "Prognos AI flagging (prototype)");
                             });
 
                             view.Button([Button.GhostMd, Button.Size.Icon],
@@ -201,13 +201,13 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
         return actionLabel.Trim();
     }
 
-    private static string BandLabel(LungFirstBand b) =>
+    private static string BandLabel(PrognosBand b) =>
         b switch
         {
-            LungFirstBand.PassiveWatch => "0–2 watch",
-            LungFirstBand.StandardInvite => "3 standard",
-            LungFirstBand.PriorityInvite => "4–5 priority",
-            LungFirstBand.UrgentPriority => "6–7 urgent",
+            PrognosBand.PassiveWatch => "0–2 watch",
+            PrognosBand.StandardInvite => "3 standard",
+            PrognosBand.PriorityInvite => "4–5 priority",
+            PrognosBand.UrgentPriority => "6–7 urgent",
             _ => ""
         };
 
@@ -247,16 +247,16 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
         return parts.Count == 0 ? "—" : string.Join(" · ", parts);
     }
 
-    private static string RowStyleForBand(LungFirstBand band) =>
+    private static string RowStyleForBand(PrognosBand band) =>
         band switch
         {
-            LungFirstBand.PassiveWatch =>
+            PrognosBand.PassiveWatch =>
                 "bg-emerald-50 border-emerald-200 text-emerald-950 dark:bg-emerald-950/50 dark:border-emerald-700 dark:text-zinc-100",
-            LungFirstBand.StandardInvite =>
+            PrognosBand.StandardInvite =>
                 "bg-emerald-50 border-emerald-200 text-emerald-950 dark:bg-emerald-950/50 dark:border-emerald-700 dark:text-zinc-100",
-            LungFirstBand.PriorityInvite =>
+            PrognosBand.PriorityInvite =>
                 "bg-amber-50 border-amber-200 text-amber-950 dark:bg-amber-950/50 dark:border-amber-700 dark:text-zinc-100",
-            LungFirstBand.UrgentPriority =>
+            PrognosBand.UrgentPriority =>
                 "bg-red-50 border-red-200 text-red-950 dark:bg-red-950/50 dark:border-red-800 dark:text-zinc-100",
             _ => "bg-card border-border text-foreground"
         };
@@ -300,7 +300,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
             ParameterScore = 5,
             FinalScore = 6,
             ComorbidityModifierApplied = false,
-            Band = LungFirstBand.UrgentPriority,
+            Band = PrognosBand.UrgentPriority,
             ActionLabel = "Urgent priority — Wave 1 immediate; GP actively notified; coordinator call if no booking in 7 days",
             Wave = "Wave 1",
             Slot = "30 min urgent",
@@ -317,7 +317,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
             ParameterScore = 6,
             FinalScore = 7,
             ComorbidityModifierApplied = true,
-            Band = LungFirstBand.UrgentPriority,
+            Band = PrognosBand.UrgentPriority,
             ActionLabel = "Urgent priority — Wave 1 immediate; GP actively notified; coordinator call if no booking in 7 days",
             Wave = "Wave 1",
             Slot = "30 min urgent",
@@ -334,7 +334,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
             ParameterScore = 4,
             FinalScore = 4,
             ComorbidityModifierApplied = false,
-            Band = LungFirstBand.PriorityInvite,
+            Band = PrognosBand.PriorityInvite,
             ActionLabel = "Priority invite — 30 min, sooner date; OmaKanta + SMS; GP passive notification",
             Wave = "Wave 1",
             Slot = "30 min priority",
@@ -351,7 +351,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
             ParameterScore = 4,
             FinalScore = 5,
             ComorbidityModifierApplied = false,
-            Band = LungFirstBand.PriorityInvite,
+            Band = PrognosBand.PriorityInvite,
             ActionLabel = "Priority invite — 30 min, sooner date; OmaKanta + SMS; GP passive notification",
             Wave = "Wave 1",
             Slot = "30 min priority",
@@ -368,7 +368,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
             ParameterScore = 3,
             FinalScore = 3,
             ComorbidityModifierApplied = false,
-            Band = LungFirstBand.StandardInvite,
+            Band = PrognosBand.StandardInvite,
             ActionLabel = "Standard invite — 20 min slot; OmaKanta 3-touch if no response",
             Wave = "Wave 2",
             Slot = "20 min standard",
@@ -415,7 +415,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
         catch (Exception ex)
         {
             _analysisError.Value = $"Analysis failed: {ex.Message}";
-            Log.Instance.Warning($"LungFirst analysis error: {ex}");
+            Log.Instance.Warning($"Prognos analysis error: {ex}");
         }
         finally
         {
@@ -423,3 +423,4 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
         }
     }
 }
+

@@ -1,6 +1,6 @@
 namespace Ikon.App.MyProject.Clinical;
 
-/// <summary>Scoring output after gates — LungFirst bands &amp; queue hints.</summary>
+/// <summary>Scoring output after gates — Prognos bands &amp; queue hints.</summary>
 public sealed class CopdRiskResult
 {
     public required string PatientId { get; init; }
@@ -13,7 +13,7 @@ public sealed class CopdRiskResult
     public int FinalScore { get; init; }
 
     public bool ComorbidityModifierApplied { get; init; }
-    public LungFirstBand Band { get; init; }
+    public PrognosBand Band { get; init; }
     public required string ActionLabel { get; init; }
     public required string Wave { get; init; }
     public required string Slot { get; init; }
@@ -25,8 +25,8 @@ public sealed class CopdRiskResult
     public bool RuleP5NoSpirometry { get; init; }
 }
 
-/// <summary>Step 3 score banding (LungFirst spec).</summary>
-public enum LungFirstBand
+/// <summary>Step 3 score banding (Prognos spec).</summary>
+public enum PrognosBand
 {
     PassiveWatch,
     StandardInvite,
@@ -41,3 +41,4 @@ public sealed class GateExcludedResult
     public int Age { get; init; }
     public required string Reason { get; init; }
 }
+

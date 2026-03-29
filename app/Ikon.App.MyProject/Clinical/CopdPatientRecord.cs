@@ -1,7 +1,7 @@
 namespace Ikon.App.MyProject.Clinical;
 
 /// <summary>
-/// Kanta-aligned snapshot for LungFirst flagging — see lungfirst-ai-flagging-spec.pdf.
+/// Kanta-aligned snapshot for Prognos flagging — see prognos-ai-flagging-spec.pdf.
 /// Invites only; never diagnoses.
 /// </summary>
 public sealed class CopdPatientRecord
@@ -56,3 +56,4 @@ public enum SmokingStatus
     ExSmoker,
     History
 }
+

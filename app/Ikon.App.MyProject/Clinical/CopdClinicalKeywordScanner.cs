@@ -2,7 +2,7 @@ using System.Linq;
 
 namespace Ikon.App.MyProject.Clinical;
 
-/// <summary>Free-text hints (Finnish + English) — confirmatory / catch sparse records per LungFirst spec.</summary>
+/// <summary>Free-text hints (Finnish + English) — confirmatory / catch sparse records per Prognos spec.</summary>
 public static class CopdClinicalKeywordScanner
 {
     private static readonly string[] SmokingKeywords =
@@ -79,3 +79,4 @@ public static class CopdClinicalKeywordScanner
         };
     }
 }
+

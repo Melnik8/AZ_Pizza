@@ -1,6 +1,6 @@
 namespace Ikon.App.MyProject.Clinical;
 
-/// <summary>LungFirst algorithm — Step 2 scoring + Step 3 banding (spec PDF). No black-box.</summary>
+/// <summary>Prognos algorithm — Step 2 scoring + Step 3 banding (spec PDF). No black-box.</summary>
 public static class CopdRiskScorer
 {
     public static FlaggingEvaluation Evaluate(CopdPatientRecord raw)
@@ -85,12 +85,12 @@ public static class CopdRiskScorer
         };
     }
 
-    private static (LungFirstBand Band, string Action, string Wave, string Slot) MapBand(int finalScore)
+    private static (PrognosBand Band, string Action, string Wave, string Slot) MapBand(int finalScore)
     {
         if (finalScore <= 2)
         {
             return (
-                LungFirstBand.PassiveWatch,
+                PrognosBand.PassiveWatch,
                 "No action — passive watch; re-score in 6 months",
                 "—",
                 "—");
@@ -99,7 +99,7 @@ public static class CopdRiskScorer
         if (finalScore == 3)
         {
             return (
-                LungFirstBand.StandardInvite,
+                PrognosBand.StandardInvite,
                 "Standard invite — Wave 2 queue, 20 min slot; OmaKanta 3-touch if no response",
                 "Wave 2",
                 "20 min standard");
@@ -108,14 +108,14 @@ public static class CopdRiskScorer
         if (finalScore is >= 4 and <= 5)
         {
             return (
-                LungFirstBand.PriorityInvite,
+                PrognosBand.PriorityInvite,
                 "Priority invite — Wave 1, 30 min, sooner date; OmaKanta + SMS; GP passive notification",
                 "Wave 1",
                 "30 min priority");
         }
 
         return (
-            LungFirstBand.UrgentPriority,
+            PrognosBand.UrgentPriority,
             "Urgent priority — Wave 1 immediate; GP actively notified; coordinator call if no booking in 7 days",
             "Wave 1",
             "30 min urgent");
@@ -133,3 +133,4 @@ public static class CopdRiskScorer
         return Math.Max(0, age);
     }
 }
+

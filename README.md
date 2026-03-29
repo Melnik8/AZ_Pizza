@@ -1,4 +1,4 @@
-# LungFirst AI Flagging Prototype
+# Prognos AI Flagging Prototype
 
 ## Overview
 
@@ -97,3 +97,4 @@ If the app is deployed and the button or data do not match expectations, it usua
 ---
 
 For clinical audiences, this prototype is a way to preview how an invitation and screening workflow can be surfaced to care teams, while technical teams can use the same app as a foundation for a more connected production deployment.
+
