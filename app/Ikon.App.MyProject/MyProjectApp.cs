@@ -14,12 +14,138 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
 
     private readonly IPatientRecordRepository _patients = PatientRecordRepositoryFactory.Create(app);
     private readonly ClientReactive<string> _currentTheme = new(Constants.LightTheme);
+    private readonly ClientReactive<string> _currentLanguage = new("en");
     private readonly Reactive<bool> _isAnalyzing = new(false);
     private readonly Reactive<string?> _analysisError = new(null);
     private readonly Reactive<List<CopdRiskResult>> _scored = new([]);
     private readonly Reactive<List<GateExcludedResult>> _excluded = new([]);
     private readonly Reactive<HashSet<string>> _invitedPatients = new(new HashSet<string>());
     private readonly Reactive<bool> _hasAnalyzed = new(false);
+
+    private static readonly Dictionary<string, Dictionary<string, string>> _translations = new()
+    {
+        ["en"] = new()
+        {
+            ["Title"] = "Prognos AI flagging (prototype)",
+            ["AnalyzeDatabase"] = "Analyze database",
+            ["Analyzing"] = "Analyzing…",
+            ["ShowExampleQueue"] = "Show example queue",
+            ["QueuedCount"] = "{0} queued",
+            ["RunBatchAnalysis"] = "Run batch analysis. Output: priority-ranked invitation queue (bands), not a diagnosis.",
+            ["ColorReference"] = "Color reference",
+            ["RedDescription"] = "Red — score 6-7 urgent priority; Wave 1 immediate; GP actively notified; coordinator call if no booking in 7 days.",
+            ["AmberDescription"] = "Amber — score 4-5 priority invite; 30 min, sooner date; OmaKanta + SMS; GP passive notification.",
+            ["GreenDescription"] = "Green — score 3 standard invite; 20 min slot; OmaKanta + SMS.",
+            ["InvitationQueueHeader"] = "Invitation queue (by final score)",
+            ["Patient"] = "Patient",
+            ["Age"] = "Age",
+            ["Final"] = "Final",
+            ["Band"] = "Band",
+            ["WaveSlot"] = "Wave / slot",
+            ["Details"] = "Details",
+            ["Action"] = "Action",
+            ["InvitationSent"] = "Invitation sent",
+            ["Invite"] = "Invite",
+            ["AnalysisFailed"] = "Analysis failed: {0}",
+            ["RuleP1"] = "P1 age+smoking/NRT",
+            ["RuleP2"] = "P2 salbutamol",
+            ["RuleP3"] = "P3 LRTI abs",
+            ["RuleP4"] = "P4 vague visits",
+            ["RuleP5"] = "P5 no spirometry",
+            ["ComorbidityModifier"] = "+0.5 comorbidity→ceil",
+            ["BandPassiveWatch"] = "0–2 watch",
+            ["BandStandardInvite"] = "3 standard",
+            ["BandPriorityInvite"] = "4–5 priority",
+            ["BandUrgentPriority"] = "6–7 urgent"
+        },
+        ["fi"] = new()
+        {
+            ["Title"] = "Prognos AI-luokitus (prototyyppi)",
+            ["AnalyzeDatabase"] = "Analysoi tietokanta",
+            ["Analyzing"] = "Analysoidaan…",
+            ["ShowExampleQueue"] = "Näytä esimerkkijono",
+            ["QueuedCount"] = "{0} jonossa",
+            ["RunBatchAnalysis"] = "Suorita eräanalyysi. Tulostus: priorisoitu kutsujono (bändit), ei diagnoosi.",
+            ["ColorReference"] = "Väriviite",
+            ["RedDescription"] = "Punainen — pistemäärä 6-7 kiireellinen prioriteetti; aaltosarja 1 välitön; lääkäri ilmoitettu; koordinaattori soittaa, jos varausta ei tehdä 7 päivän sisällä.",
+            ["AmberDescription"] = "Keltainen — pistemäärä 4-5 prioriteettikutsu; 30 min, nopeampi aika; OmaKanta + SMS; GP passiivinen ilmoitus.",
+            ["GreenDescription"] = "Vihreä — pistemäärä 3 normaali kutsu; 20 min aika; OmaKanta + SMS.",
+            ["InvitationQueueHeader"] = "Kutsujono (lopullisen pistemäärän mukaan)",
+            ["Patient"] = "Potilas",
+            ["Age"] = "Ikä",
+            ["Final"] = "Lopullinen",
+            ["Band"] = "Bändi",
+            ["WaveSlot"] = "Aalto / aika",
+            ["Details"] = "Tiedot",
+            ["Action"] = "Toiminto",
+            ["InvitationSent"] = "Kutsu lähetetty",
+            ["Invite"] = "Kutsu",
+            ["AnalysisFailed"] = "Analyysi epäonnistui: {0}",
+            ["RuleP1"] = "P1 ikä+tupakointi/NRT",
+            ["RuleP2"] = "P2 salbutamoli",
+            ["RuleP3"] = "P3 antibiootit",
+            ["RuleP4"] = "P4 epämääräiset käynnit",
+            ["RuleP5"] = "P5 ei spirometriaa",
+            ["ComorbidityModifier"] = "+0,5 liitännäissairaus→pyöristä ylöspäin",
+            ["BandPassiveWatch"] = "0–2 seuranta",
+            ["BandStandardInvite"] = "3 vakio",
+            ["BandPriorityInvite"] = "4–5 prioriteetti",
+            ["BandUrgentPriority"] = "6–7 kiireellinen"
+        },
+        ["sv"] = new()
+        {
+            ["Title"] = "Prognos AI-flagging (prototyp)",
+            ["AnalyzeDatabase"] = "Analysera databas",
+            ["Analyzing"] = "Analyserar…",
+            ["ShowExampleQueue"] = "Visa exempelkö",
+            ["QueuedCount"] = "{0} i kö",
+            ["RunBatchAnalysis"] = "Kör batchanalys. Utdata: prioriterad inbjudningskö (band), inte en diagnos.",
+            ["ColorReference"] = "Färgreferens",
+            ["RedDescription"] = "Röd — poäng 6-7 brådskande prioritet; Våg 1 omedelbart; GP meddelas; koordinator ringer om ingen bokning på 7 dagar.",
+            ["AmberDescription"] = "Gul — poäng 4-5 prioriterad inbjudan; 30 min, tidigare tid; OmaKanta + SMS; GP passiv avisering.",
+            ["GreenDescription"] = "Grön — poäng 3 standardinbjudan; 20 min tid; OmaKanta + SMS.",
+            ["InvitationQueueHeader"] = "Inbjudningskö (efter slutpoäng)",
+            ["Patient"] = "Patient",
+            ["Age"] = "Ålder",
+            ["Final"] = "Slut",
+            ["Band"] = "Band",
+            ["WaveSlot"] = "Våg / tid",
+            ["Details"] = "Detaljer",
+            ["Action"] = "Åtgärd",
+            ["InvitationSent"] = "Inbjudan skickad",
+            ["Invite"] = "Bjud in",
+            ["AnalysisFailed"] = "Analys misslyckades: {0}",
+            ["RuleP1"] = "P1 ålder+rökning/NRT",
+            ["RuleP2"] = "P2 salbutamol",
+            ["RuleP3"] = "P3 antibiotika",
+            ["RuleP4"] = "P4 vaga besök",
+            ["RuleP5"] = "P5 ingen spirometri",
+            ["ComorbidityModifier"] = "+0,5 komorbiditet→uppåt",
+            ["BandPassiveWatch"] = "0–2 bevaka",
+            ["BandStandardInvite"] = "3 standard",
+            ["BandPriorityInvite"] = "4–5 prioritet",
+            ["BandUrgentPriority"] = "6–7 brådskande"
+        }
+    };
+
+    private string T(string key) => Translate(_currentLanguage.Value, key);
+
+    private string T(string key, params object[] args) => string.Format(Translate(_currentLanguage.Value, key), args);
+
+    private static string Translate(string language, string key)
+    {
+        if (_translations.TryGetValue(language, out var dict) && dict.TryGetValue(key, out var value))
+        {
+            return value;
+        }
+
+        if (_translations.TryGetValue("en", out var fallback) && fallback.TryGetValue(key, out var fallbackValue))
+        {
+            return fallbackValue;
+        }
+
+        return key;
+    }
 
     public async Task Main()
     {
@@ -42,12 +168,25 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                         {
                             view.Column([Layout.Column.Xs], content: view =>
                             {
-                                view.Text([Text.H2, "font-heading"], "Prognos AI flagging (prototype)");
+                                view.Text([Text.H2, "font-heading"], T("Title"));
                             });
 
-                            view.Button([Button.GhostMd, Button.Size.Icon],
-                                onClick: ToggleThemeAsync,
-                                content: v => v.Icon([Icon.Default], name: _currentTheme.Value == Constants.DarkTheme ? "sun" : "moon"));
+                            view.Row(["items-center gap-2"], content: view =>
+                            {
+                                foreach (var lang in new[] { "fi", "sv", "en" })
+                                {
+                                    var isActive = _currentLanguage.Value == lang;
+                                    view.Button(
+                                        [Button.SecondaryMd, isActive ? "bg-accent text-accent-foreground" : ""],
+                                        lang.ToUpperInvariant(),
+                                        disabled: isActive,
+                                        onClick: async () => { _currentLanguage.Value = lang; });
+                                }
+
+                                view.Button([Button.GhostMd, Button.Size.Icon],
+                                    onClick: ToggleThemeAsync,
+                                    content: v => v.Icon([Icon.Default], name: _currentTheme.Value == Constants.DarkTheme ? "sun" : "moon"));
+                            });
                         });
                     });
 
@@ -57,20 +196,20 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                         {
                             view.Button(
                                 [Button.PrimaryMd],
-                                _isAnalyzing.Value ? "Analyzing…" : "Analyze database",
+                                _isAnalyzing.Value ? T("Analyzing") : T("AnalyzeDatabase"),
                                 disabled: _isAnalyzing.Value,
                                 onClick: async () => { await AnalyzeAsync(); });
 
                             view.Button(
                                 [Button.SecondaryMd],
-                                "Show example queue",
+                                T("ShowExampleQueue"),
                                 disabled: _isAnalyzing.Value,
                                 onClick: async () => { await ShowExampleQueueAsync(); });
 
                             if (_hasAnalyzed.Value && !_isAnalyzing.Value)
                             {
                                 view.Text([Text.Small, "text-muted-foreground"],
-                                    $"{_scored.Value.Count} queued");
+                                    T("QueuedCount", _scored.Value.Count));
                             }
                         });
 
@@ -84,7 +223,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                             if (!_hasAnalyzed.Value)
                             {
                                 view.Text([Text.Body, "text-muted-foreground"],
-                                    "Run batch analysis. Output: priority-ranked invitation queue (bands), not a diagnosis.");
+                                    T("RunBatchAnalysis"));
                                 return;
                             }
 
@@ -92,28 +231,28 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                             {
                                 view.Box(["rounded-lg border border-border bg-muted/10 p-4 mb-4"], content: view =>
                                 {
-                                    view.Text([Text.H4, "font-heading mb-3"], "Color reference");
+                                    view.Text([Text.H4, "font-heading mb-3"], T("ColorReference"));
                                     view.Column(["gap-2"], content: view =>
                                     {
                                         view.Row(["items-center gap-3"], content: view =>
                                         {
                                             view.Box(["h-3 w-3 rounded-full bg-red-500"]);
-                                            view.Text(["text-sm"], "Red — score 6-7 urgent priority; Wave 1 immediate; GP actively notified; coordinator call if no booking in 7 days.");
+                                            view.Text(["text-sm"], T("RedDescription"));
                                         });
                                         view.Row(["items-center gap-3"], content: view =>
                                         {
                                             view.Box(["h-3 w-3 rounded-full bg-amber-500"]);
-                                            view.Text(["text-sm"], "Amber — score 4-5 priority invite; 30 min, sooner date; OmaKanta + SMS; GP passive notification.");
+                                            view.Text(["text-sm"], T("AmberDescription"));
                                         });
                                         view.Row(["items-center gap-3"], content: view =>
                                         {
                                             view.Box(["h-3 w-3 rounded-full bg-emerald-500"]);
-                                            view.Text(["text-sm"], "Green — score 3 standard invite; 20 min slot; OmaKanta + SMS.");
+                                            view.Text(["text-sm"], T("GreenDescription"));
                                         });
                                     });
                                 });
 
-                                view.Text([Text.H3, "font-heading text-sm text-foreground"], "Invitation queue (by final score)");
+                                view.Text([Text.H3, "font-heading text-sm text-foreground"], T("InvitationQueueHeader"));
                                 view.Column([Layout.Column.Sm], content: view =>
                                 {
                                     view.Row([
@@ -121,13 +260,13 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                                         ],
                                         content: view =>
                                         {
-                                            view.Text(["min-w-[7rem]"], "Patient");
-                                            view.Text(["w-10"], "Age");
-                                            view.Text(["w-14 text-center"], "Final");
-                                            view.Text(["min-w-[6rem]"], "Band");
-                                            view.Text(["min-w-[7rem]"], "Wave / slot");
-                                            view.Text(["flex-1 min-w-[12rem]"], "Details");
-                                            view.Text(["w-28 text-right"], "Action");
+                                            view.Text(["min-w-[7rem]"], T("Patient"));
+                                            view.Text(["w-10"], T("Age"));
+                                            view.Text(["w-14 text-center"], T("Final"));
+                                            view.Text(["min-w-[6rem]"], T("Band"));
+                                            view.Text(["min-w-[7rem]"], T("WaveSlot"));
+                                            view.Text(["flex-1 min-w-[12rem]"], T("Details"));
+                                            view.Text(["w-28 text-right"], T("Action"));
                                         });
 
                                     foreach (var row in _scored.Value)
@@ -163,11 +302,11 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                                                 {
                                                     if (invited)
                                                     {
-                                                        view.Button([Button.SecondaryMd, "w-full"], "Invitation sent", disabled: true);
+                                                        view.Button([Button.SecondaryMd, "w-full"], T("InvitationSent"), disabled: true);
                                                     }
                                                     else
                                                     {
-                                                        view.Button([Button.PrimaryMd, "w-full"], "Invite",
+                                                        view.Button([Button.PrimaryMd, "w-full"], T("Invite"),
                                                             onClick: async () =>
                                                             {
                                                                 var updated = new HashSet<string>(_invitedPatients.Value)
@@ -182,7 +321,6 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
                                         });
                                     }
                                 });
-
                             });
                         });
                     });
@@ -201,47 +339,47 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
         return actionLabel.Trim();
     }
 
-    private static string BandLabel(PrognosBand b) =>
-        b switch
-        {
-            PrognosBand.PassiveWatch => "0–2 watch",
-            PrognosBand.StandardInvite => "3 standard",
-            PrognosBand.PriorityInvite => "4–5 priority",
-            PrognosBand.UrgentPriority => "6–7 urgent",
-            _ => ""
-        };
+private string BandLabel(PrognosBand b) =>
+            b switch
+            {
+                PrognosBand.PassiveWatch => T("BandPassiveWatch"),
+                PrognosBand.StandardInvite => T("BandStandardInvite"),
+                PrognosBand.PriorityInvite => T("BandPriorityInvite"),
+                PrognosBand.UrgentPriority => T("BandUrgentPriority"),
+                _ => ""
+            };
 
-    private static string FormatRuleHits(CopdRiskResult r)
+    private string FormatRuleHits(CopdRiskResult r)
     {
         var parts = new List<string>();
         if (r.RuleP1AgeSmokingOrCessation)
         {
-            parts.Add("P1 age+smoking/NRT");
+            parts.Add(T("RuleP1"));
         }
 
         if (r.RuleP2SalbutamolWithoutRespDx)
         {
-            parts.Add("P2 salbutamol");
+            parts.Add(T("RuleP2"));
         }
 
         if (r.RuleP3LrtiAntibiotics)
         {
-            parts.Add("P3 LRTI abs");
+            parts.Add(T("RuleP3"));
         }
 
         if (r.RuleP4VagueRespiratoryVisits)
         {
-            parts.Add("P4 vague visits");
+            parts.Add(T("RuleP4"));
         }
 
         if (r.RuleP5NoSpirometry)
         {
-            parts.Add("P5 no spirometry");
+            parts.Add(T("RuleP5"));
         }
 
         if (r.ComorbidityModifierApplied)
         {
-            parts.Add("+0.5 comorbidity→ceil");
+            parts.Add(T("ComorbidityModifier"));
         }
 
         return parts.Count == 0 ? "—" : string.Join(" · ", parts);
@@ -414,7 +552,7 @@ public class MyProjectApp(IApp<SessionIdentity, ClientParameters> app)
         }
         catch (Exception ex)
         {
-            _analysisError.Value = $"Analysis failed: {ex.Message}";
+            _analysisError.Value = T("AnalysisFailed", ex.Message);
             Log.Instance.Warning($"Prognos analysis error: {ex}");
         }
         finally
